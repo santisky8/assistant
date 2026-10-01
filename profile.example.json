@@ -2,9 +2,47 @@
   "name": "Your Name",
   "linkedin": "https://www.linkedin.com/in/your-handle",
   "based_in": "Canada",
-  "target_roles": ["frontend developer", "react", "full stack"],
-  "skills": ["react", "javascript", "typescript", "css", "node", "python", "supabase", "flutter"],
-  "exclude": ["senior staff", "principal", "director"],
-  "regions": ["europe", "emea", "worldwide"],
-  "languages": ["English"]
+  "target_roles": [
+    "frontend developer",
+    "react",
+    "full stack"
+  ],
+  "skills": [
+    "react",
+    "javascript",
+    "typescript",
+    "css",
+    "node",
+    "python",
+    "supabase",
+    "flutter"
+  ],
+  "exclude": [
+    "senior staff",
+    "principal",
+    "director"
+  ],
+  "regions": [
+    "europe",
+    "emea",
+    "worldwide"
+  ],
+  "languages": [
+    "English"
+  ],
+  "preferences": "Fully remote. Prefers async or flexible hours; otherwise European hours.",
+  "boost": [
+    "async",
+    "asynchronous",
+    "flexible hours",
+    "work from anywhere",
+    "employer of record",
+    "cet"
+  ],
+  "penalty": [
+    "us hours",
+    "pacific time",
+    "eastern time",
+    "must be located in the us"
+  ]
 }

@@ -148,10 +148,12 @@ def score(j, p):
     text = f"{j['title']} {' '.join(j['tags'])} {j['description']}".lower()
     title = j["title"].lower()
     if any(x.lower() in title for x in p.get("exclude", [])):
-        return 0
-    role_hit = any(r.lower() in title or r.lower() in " ".join(j["tags"]).lower() for r in p["target_roles"])
-    skill_hits = sum(1 for s in p["skills"] if re.search(rf"\b{re.escape(s.lower())}\b", text))
-    return (10 if role_hit else 0) + skill_hits
+        return -1
+    if not any(r.lower() in title for r in p["target_roles"]):
+        return -1
+    hits = lambda words: sum(1 for w in words if re.search(rf"\b{re.escape(w.lower())}\b", text))
+    # boost: async, flexible hours, hires in Spain. penalty: US-hours overlap, seniority too high.
+    return 10 + hits(p["skills"]) + 3 * hits(p.get("boost", [])) - 3 * hits(p.get("penalty", []))
 
 
 def cmd_find(args):
@@ -172,7 +174,7 @@ def cmd_find(args):
             continue
         seen.add(key)
         j["score"] = score(j, p)
-        if j["score"] >= 10:
+        if j["score"] >= 0:
             keep.append(j)
     keep.sort(key=lambda j: (j["score"], j["date"]), reverse=True)
     JOBS.write_text(json.dumps(keep, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -227,7 +229,8 @@ CV:
 {cv}
 
 Score each job from 1 to 10 for how likely this candidate is to get an interview, considering
-skills, seniority, location eligibility from {p['based_in']} and language needs.
+skills, seniority, location eligibility from {p['based_in']}, language needs and the candidate's
+preferences: {p.get('preferences', 'none')}. Lower the score for fixed hours far from the candidate's time zone.
 Answer ONLY with a JSON array: [{{"id": "...", "fit": 7, "why": "one short sentence"}}]
 
 Jobs:
@@ -260,7 +263,7 @@ and public LinkedIn profiles that appear in search results.
 
 Give:
 1. The best 5 to 8 people to contact: name, role, why them, public profile link, and the best
-   channel (LinkedIn note, public work email from the company site, X, GitHub). Prefer people in Europe,
+   channel (LinkedIn note, public work email from the company site, X, GitHub). Prefer people in Spain, then Europe,
    people in the hiring team, and recruiters who post about this role.
 2. The company's public hiring contact or careers email, if published.
 3. A LinkedIn connection note under 300 characters for each type of person (recruiter, hiring manager,
