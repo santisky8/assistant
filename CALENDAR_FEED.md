@@ -17,6 +17,6 @@ Contract between this repo (writes the plan) and the Lyfe Time app (santisky8/ti
 
 ## Rules for consumers (checklist, progress tracking)
 
-- Identify a task by **local date + SUMMARY**.
+- Identify a task by **local date + SUMMARY**. SUMMARY is unique within a day (a repeat gets " (2)") and has no counters or timestamps, so it stays the same across refreshes.
 - Every full refresh replaces all future events; keep completion state in the app, keyed as above.
 - Treat the feed as read-only. Changes to the routine go in `schedule.json` in this repo.

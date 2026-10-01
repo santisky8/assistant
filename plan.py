@@ -95,8 +95,13 @@ def build(cfg, start, days=14):
            "X-WR-CALNAME:Daily plan", f"X-WR-TIMEZONE:{tz}", "REFRESH-INTERVAL;VALUE=DURATION:PT6H"]
     for i in range(days):
         day = start + timedelta(days=i)
+        seen = {}
         for n, (s, e, title, *extra) in enumerate(cfg["days"][DAYS[day.weekday()]]):
             summary, notes = p.expand(title, day)
+            # date + SUMMARY is the task key in Lyfe Time, so keep it unique within a day
+            seen[summary] = seen.get(summary, 0) + 1
+            if seen[summary] > 1:
+                summary += f" ({seen[summary]})"
             # "free" marks a reminder that overlaps other blocks without making you busy
             free = "free" in extra
             notes = [x for x in extra if x != "free"] + notes
