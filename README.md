@@ -1,0 +1,47 @@
+# Remote Job Assistant
+
+A command-line assistant that helps you:
+
+1. **Find** the latest remote jobs open to people in Europe (or worldwide).
+2. **Rank** them against your CV, so you apply where you have the best chance.
+3. **Apply** with a tailored CV, cover letter, answers and interview prep for each job.
+4. **Find people** to contact (recruiters, hiring managers, future teammates) and get ready-to-send LinkedIn notes to ask for advice or a referral.
+
+Job data comes from free public APIs: Remotive, RemoteOK, Arbeitnow, Jobicy and Himalayas.
+Ranking, application packs and contact research use Claude (`claude-opus-5-5`) with web search.
+
+## Setup
+
+1. Install [uv](https://docs.astral.sh/uv/).
+2. Get an Anthropic API key and set it:
+   - PowerShell: `$env:ANTHROPIC_API_KEY = "sk-ant-..."`
+   - Bash: `export ANTHROPIC_API_KEY=sk-ant-...`
+3. Copy `profile.example.json` to `profile.json` and fill in your target roles, skills and regions.
+4. Copy `cv.example.md` to `cv.md` and paste your real CV.
+
+`profile.json`, `cv.md`, `jobs.json` and `out/` are git-ignored, so your personal data stays local.
+
+## Use
+
+```bash
+uv run assistant.py find --days 14     # fetch and filter jobs, saves jobs.json
+uv run assistant.py rank --top 30      # Claude scores the top 30 against your CV
+uv run assistant.py apply <job-id>     # application pack + referral contacts, saved in out/
+uv run assistant.py contacts <job-id>  # only the people to contact and messages
+```
+
+## Profile fields
+
+| Field | Meaning |
+|---|---|
+| `target_roles` | Job titles to search for. A job must match one in its title or tags. |
+| `skills` | Your skills. More matches rank a job higher. |
+| `exclude` | Words in titles you want to skip, for example `director`. |
+| `regions` | `europe`/`emea` keeps jobs open to European countries; `worldwide` keeps "anywhere" jobs. You can add country names. |
+| `based_in` | Where you live. Claude checks if the company can hire you there. |
+
+## Good practice
+
+- The assistant never invents experience. It rewrites what is really in your CV.
+- It uses only public information and does not scrape LinkedIn. It gives you LinkedIn search links to open yourself.
+- Send connection notes personally and keep follow-ups polite: no more than 2 follow-ups per person.

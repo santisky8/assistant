@@ -1,0 +1,10 @@
+{
+  "name": "Your Name",
+  "linkedin": "https://www.linkedin.com/in/your-handle",
+  "based_in": "Canada",
+  "target_roles": ["frontend developer", "react", "full stack"],
+  "skills": ["react", "javascript", "typescript", "css", "node", "python", "supabase", "flutter"],
+  "exclude": ["senior staff", "principal", "director"],
+  "regions": ["europe", "emea", "worldwide"],
+  "languages": ["English"]
+}

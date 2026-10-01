@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+out/
+jobs.json
+profile.json
+cv.md
+.env
