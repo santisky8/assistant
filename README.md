@@ -53,3 +53,7 @@ uv run assistant.py contacts <job-id>  # only the people to contact and messages
 1. Create a secret gist at gist.github.com with one file named `plan.ics`. Put its id in `schedule.json` (`gist_id`).
 2. Run `uv run plan.py --publish` and subscribe in Google Calendar: Other calendars, +, From URL, with the printed URL.
 3. Schedule `run_daily.cmd` in Windows Task Scheduler to refresh jobs and the plan every evening.
+
+### Planning around real events
+
+Put your Google Calendar's private iCal address (Settings, your calendar, Integrate calendar, "Secret address in iCal format") in `schedule.json` under `busy_ics`. Each evening the plan moves job-search blocks off real events into the next free slot between 07:00 and 22:00, may take the time of soft routine blocks (walks, wind down), drops free-time blocks that clash, and never moves work, meals or sleep. Keep that address private: anyone with it can read your calendar.
