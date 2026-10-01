@@ -124,6 +124,8 @@ def busy_by_day(cfg, start, days):
             s, e = ev["DTSTART"].dt, ev.get("DTEND", ev["DTSTART"]).dt
             if not isinstance(s, datetime) or str(ev.get("TRANSP", "OPAQUE")) == "TRANSPARENT":
                 continue  # all-day and "free" events don't block time
+            if "[daily-plan]" in str(ev.get("DESCRIPTION", "")):
+                continue  # Lyfe Time's busy copy of this plan, not a real event
             s, e = s.astimezone(tz), e.astimezone(tz)
             day = s.date()
             while day <= e.date():  # split events that cross midnight

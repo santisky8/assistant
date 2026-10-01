@@ -19,5 +19,6 @@ Contract between this repo (writes the plan) and the Lyfe Time app (santisky8/ti
 
 - Identify a task by **local date + SUMMARY**. SUMMARY is unique within a day (a repeat gets " (2)") and has no counters or timestamps, so it stays the same across refreshes.
 - Every full refresh replaces all future events; keep completion state in the app, keyed as above.
+- Lyfe Time copies plan blocks into his primary Google calendar so others see him as busy. Each copy carries the marker `[daily-plan]` in its DESCRIPTION; plan.py and conflict checks ignore events with that marker.
 - Blocks that clashed with a real event when the plan was built are already moved; their DESCRIPTION starts with "Moved from HH:MM: clashes with <event>."
 - Treat the feed as read-only. Changes to the routine go in `schedule.json` in this repo.
