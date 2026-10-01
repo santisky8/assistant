@@ -97,11 +97,13 @@ def build(cfg, start, days=14):
         day = start + timedelta(days=i)
         for n, (s, e, title, *extra) in enumerate(cfg["days"][DAYS[day.weekday()]]):
             summary, notes = p.expand(title, day)
-            notes = extra + notes
+            # "free" marks a reminder that overlaps other blocks without making you busy
+            free = "free" in extra
+            notes = [x for x in extra if x != "free"] + notes
             d = day.strftime("%Y%m%d")
             out += ["BEGIN:VEVENT", f"UID:{d}-{n}@job-assistant", f"DTSTAMP:{stamp}",
                     f"DTSTART;TZID={tz}:{d}T{s.replace(':', '')}00", f"DTEND;TZID={tz}:{d}T{e.replace(':', '')}00",
-                    f"SUMMARY:{esc(summary)}"]
+                    f"SUMMARY:{esc(summary)}", f"TRANSP:{'TRANSPARENT' if free else 'OPAQUE'}"]
             if notes:
                 out.append(f"DESCRIPTION:{esc(chr(10).join(notes))}")
             out += ["BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}", "TRIGGER:-PT5M", "END:VALARM",
