@@ -45,3 +45,11 @@ uv run assistant.py contacts <job-id>  # only the people to contact and messages
 - The assistant never invents experience. It rewrites what is really in your CV.
 - It uses only public information and does not scrape LinkedIn. It gives you LinkedIn search links to open yourself.
 - Send connection notes personally and keep follow-ups polite: no more than 2 follow-ups per person.
+
+## Daily plan in Google Calendar
+
+`plan.py` builds the next 14 days from `schedule.json` (your fixed routine, git-ignored), the job tracker spreadsheet and `jobs.json`. Placeholders in the schedule (`{outreach}`, `{apply:N}`, `{leetcode:N}`) become real tasks: open jobs with links, follow-ups due and people to find.
+
+1. Create a secret gist at gist.github.com with one file named `plan.ics`. Put its id in `schedule.json` (`gist_id`).
+2. Run `uv run plan.py --publish` and subscribe in Google Calendar: Other calendars, +, From URL, with the printed URL.
+3. Schedule `run_daily.cmd` in Windows Task Scheduler to refresh jobs and the plan every evening.
