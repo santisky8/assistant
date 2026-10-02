@@ -57,3 +57,7 @@ uv run assistant.py contacts <job-id>  # only the people to contact and messages
 ### Planning around real events
 
 Put your Google Calendar's private iCal address (Settings, your calendar, Integrate calendar, "Secret address in iCal format") in `schedule.json` under `busy_ics`. Each evening the plan moves job-search blocks off in-person events (online ones such as webinars only add a note, since you can follow them while working) into the next free slot between 07:00 and 22:00, may take the time of soft routine blocks (walks, wind down), drops free-time blocks that clash, and never moves work, meals or sleep. Keep that address private: anyone with it can read your calendar.
+
+### Carry-over and metrics
+
+Lyfe Time writes what you did (`done=k/N at=HH:MM`) onto its busy copies of the plan in your Google calendar. Each night plan.py reads them: missed applications, LeetCode, requests and referral asks move to the next block of the same kind that week, and anything left goes to Sunday's catch-up block. It also rewrites the tracker's **Metrics** tab: done vs planned per task, the hours you actually get things done, applications by weekday vs responses, and sleep against the 22:00-07:00 goal.

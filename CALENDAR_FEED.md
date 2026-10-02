@@ -15,6 +15,15 @@ Contract between this repo (writes the plan) and the Lyfe Time app (santisky8/ti
 - `TRANSP:TRANSPARENT`: a reminder that overlaps other blocks (for example `Oatmeal (Meal 3)`). Do not count it as busy time.
 - `UID` is `YYYYMMDD-<index>@job-assistant`. The index changes when the routine changes, so do **not** use it as a stable key.
 
+## Progress back from Lyfe Time
+
+- Each [daily-plan] busy copy in the primary calendar carries, under its key line, `done=k/N at=HH:MM`.
+  N is the leading number of SUMMARY when it starts with one (`3 applications`, `15 connection requests + follow-ups`, `2 LeetCode + 1 git commit`, `5 referral asks (warm contacts)`), else 1. `at` is when he actually did it.
+- The `Sleep (9 h)` copy carries `done=1/1 bed=HH:MM wake=HH:MM` from the morning check.
+- No done line means not reviewed (unknown, not missed). Past copies are kept so plan.py can read them.
+- plan.py runs at 21:50 (after the 21:00 evening review) and at logon. Units missed from Monday to today move to the next block of the same kind this week; what is left lands in Sunday's `Catch-up` block. Counts reset each Monday.
+- Every day ends with `Wind down + magnesium & omega-3` 21:30-22:00 and `Sleep (9 h)` 22:00-07:00 (DTEND on the next day). Both are fixed: never flagged or moved.
+
 ## Rules for consumers (checklist, progress tracking)
 
 - Identify a task by **local date + SUMMARY**. SUMMARY is unique within a day (a repeat gets " (2)") and has no counters or timestamps, so it stays the same across refreshes.
