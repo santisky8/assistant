@@ -91,6 +91,9 @@ FIXED = ("Work block", "HARD STOP", "Sleep", "Lunch", "Meal", "Wake up")  # real
 DROP = ("Free",)  # free time simply gives way to real events
 SOFT = ("Wind down", "Sleep prep", "Dinner prep", "Workspace setup", "Post-workout", "Gentle recovery", "Free")
 DAY_START, DAY_END = 7 * 60, 22 * 60
+# words that mark an event you can follow online while doing something else
+ONLINE = ("http", "zoom", "meet.google", "teams.microsoft", "youtube", "webinar", "livestream", "live with",
+          "live stream", "online", "virtual", "watch")
 
 
 def mins(hhmm):
@@ -103,10 +106,14 @@ def hhmm(m):
 
 
 def busy_by_day(cfg, start, days):
-    """Timed events from the private iCal addresses in schedule.json, as {date: [(start, end, title)]} in minutes."""
+    """Timed events from the private iCal addresses in schedule.json, in minutes per day.
+
+    Returns (in_person, online): each {date: [(start, end, title)]}. In-person events block time;
+    online ones (webinars, livestreams, video calls) can run alongside a task, so they only add a note.
+    """
     urls = cfg.get("busy_ics") or []
     if not urls:
-        return {}
+        return {}, {}
     import urllib.request
     from zoneinfo import ZoneInfo
 
@@ -116,7 +123,7 @@ def busy_by_day(cfg, start, days):
     tz = ZoneInfo(cfg["tz"])
     lo = datetime.combine(start, datetime.min.time(), tz)
     hi = lo + timedelta(days=days)
-    busy = {}
+    busy, online = {}, {}
     for url in urls:
         with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "job-assistant"}), timeout=30) as r:
             cal = icalendar.Calendar.from_ical(r.read())
@@ -126,15 +133,17 @@ def busy_by_day(cfg, start, days):
                 continue  # all-day and "free" events don't block time
             if "[daily-plan]" in str(ev.get("DESCRIPTION", "")):
                 continue  # Lyfe Time's busy copy of this plan, not a real event
+            text = " ".join(str(ev.get(k, "")) for k in ("SUMMARY", "LOCATION", "DESCRIPTION")).lower()
+            target = online if any(w in text for w in ONLINE) else busy
             s, e = s.astimezone(tz), e.astimezone(tz)
             day = s.date()
             while day <= e.date():  # split events that cross midnight
                 a = mins(s.strftime("%H:%M")) if day == s.date() else 0
                 b = mins(e.strftime("%H:%M")) if day == e.date() else 24 * 60
                 if b > a:
-                    busy.setdefault(day, []).append((a, b, str(ev.get("SUMMARY", "Busy"))))
+                    target.setdefault(day, []).append((a, b, str(ev.get("SUMMARY", "Busy"))))
                 day += timedelta(days=1)
-    return busy
+    return busy, online
 
 
 def fit(blocks, busy):
@@ -175,7 +184,7 @@ def fit(blocks, busy):
 def build(cfg, start, days=14):
     p = Planner(cfg)
     tz = cfg["tz"]
-    busy = busy_by_day(cfg, start, days)
+    busy, online = busy_by_day(cfg, start, days)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//santisky8//job-assistant//EN",
            "X-WR-CALNAME:Daily plan", f"X-WR-TIMEZONE:{tz}", "REFRESH-INTERVAL;VALUE=DURATION:PT6H"]
@@ -187,6 +196,8 @@ def build(cfg, start, days=14):
             print(f"  {day}: {line}")
         for n, (s, e, title, *extra) in enumerate(blocks):
             summary, notes = p.expand(title, day)
+            notes = [f"Online at the same time: {t}. Watch it while you do this." for x, y, t in online.get(day, [])
+                     if mins(s) < y and x < mins(e) and "free" not in extra] + notes
             # date + SUMMARY is the task key in Lyfe Time, so keep it unique within a day
             seen[summary] = seen.get(summary, 0) + 1
             if seen[summary] > 1:

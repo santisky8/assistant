@@ -56,4 +56,4 @@ uv run assistant.py contacts <job-id>  # only the people to contact and messages
 
 ### Planning around real events
 
-Put your Google Calendar's private iCal address (Settings, your calendar, Integrate calendar, "Secret address in iCal format") in `schedule.json` under `busy_ics`. Each evening the plan moves job-search blocks off real events into the next free slot between 07:00 and 22:00, may take the time of soft routine blocks (walks, wind down), drops free-time blocks that clash, and never moves work, meals or sleep. Keep that address private: anyone with it can read your calendar.
+Put your Google Calendar's private iCal address (Settings, your calendar, Integrate calendar, "Secret address in iCal format") in `schedule.json` under `busy_ics`. Each evening the plan moves job-search blocks off in-person events (online ones such as webinars only add a note, since you can follow them while working) into the next free slot between 07:00 and 22:00, may take the time of soft routine blocks (walks, wind down), drops free-time blocks that clash, and never moves work, meals or sleep. Keep that address private: anyone with it can read your calendar.
