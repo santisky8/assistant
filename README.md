@@ -61,3 +61,12 @@ Put your Google Calendar's private iCal address (Settings, your calendar, Integr
 ### Carry-over and metrics
 
 Lyfe Time writes what you did (`done=k/N at=HH:MM`) onto its busy copies of the plan in your Google calendar. Each night plan.py reads them: missed applications, LeetCode, requests and referral asks move to the next block of the same kind that week, and anything left goes to Sunday's catch-up block. It also rewrites the tracker's **Metrics** tab: done vs planned per task, the hours you actually get things done, applications by weekday vs responses, and sleep against the 22:00-07:00 goal.
+
+### Requests from Lyfe Time
+
+In Lyfe Time, + › **Ask my job assistant** sends a request: find new remote jobs, prepare an application, or find people to contact for a job. The request is a short "free" event in your primary Google calendar, so it reaches plan.py through the same private iCal address (`busy_ics`). Each evening plan.py does every new request once:
+
+- **Find new remote jobs** runs `assistant.py rank --top 30` and lists the 5 best-fit jobs.
+- **Prepare an application** and **Find people to contact** run `assistant.py apply` or `contacts` for the saved job whose company and title contain every word you typed (or its id).
+
+The result shows up in the Daily plan at 08:00 the next morning as a free note starting with `[assistant]`, and the files are saved in `out/`. Handled requests are listed in `out/requests.json`; delete an entry there to run that request again. Google can take a few hours to update the private iCal address, so a request sent late in the evening may wait until the next run.

@@ -19,6 +19,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -89,10 +90,11 @@ def read_calendar(cfg, lo_day, hi_day):
     in_person / online: {date: [(start_min, end_min, title)]}. In-person events block time; online ones
     (webinars, livestreams, video calls) can run alongside a task, so they only add a note.
     progress: [{day, summary, kind, n, done, at, bed, wake}] from Lyfe Time's [daily-plan] copies.
+    requests: [{id, kind, job}] sent from Lyfe Time's "Ask my job assistant".
     """
     urls = cfg.get("busy_ics") or []
     if not urls:
-        return {}, {}, []
+        return {}, {}, [], []
     import urllib.request
     from zoneinfo import ZoneInfo
 
@@ -102,12 +104,16 @@ def read_calendar(cfg, lo_day, hi_day):
     tz = ZoneInfo(cfg["tz"])
     lo = datetime.combine(lo_day, datetime.min.time(), tz)
     hi = datetime.combine(hi_day, datetime.min.time(), tz)
-    busy, online, progress = {}, {}, {}
+    busy, online, progress, requests = {}, {}, {}, {}
     for url in urls:
         with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "job-assistant"}), timeout=30) as r:
             cal = icalendar.Calendar.from_ical(r.read())
         for ev in recurring_ical_events.of(cal).between(lo, hi):
             desc = str(ev.get("DESCRIPTION", ""))
+            req = parse_request(desc)
+            if req:  # a request sent from Lyfe Time: do it, never treat it as a real event
+                requests[req["id"]] = req
+                continue
             key = re.search(r"\[daily-plan\] key=(\d{4}-\d{2}-\d{2}) (.+)", desc)
             if key:  # Lyfe Time's busy copy of a plan block: read progress, never treat as a real event
                 done = re.search(r"done=(\d+)/(\d+)", desc)
@@ -133,7 +139,7 @@ def read_calendar(cfg, lo_day, hi_day):
                 if b > a:
                     target.setdefault(day, []).append((a, b, str(ev.get("SUMMARY", "Busy"))))
                 day += timedelta(days=1)
-    return busy, online, list(progress.values())
+    return busy, online, list(progress.values()), list(requests.values())
 
 
 def missed_this_week(progress, today):
@@ -250,7 +256,7 @@ def fit(blocks, busy):
     return sorted((x for j, x in enumerate(cur) if j not in gone), key=lambda x: x[0]), log
 
 
-def build(cfg, start, days, busy, online, carry):
+def build(cfg, start, days, busy, online, carry, results=()):
     p = Planner(cfg, carry, start)
     tz = cfg["tz"]
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -283,8 +289,102 @@ def build(cfg, start, days, busy, online, carry):
                 out.append(f"DESCRIPTION:{esc(chr(10).join(notes))}")
             out += ["BEGIN:VALARM", "ACTION:DISPLAY", f"DESCRIPTION:{esc(summary)}", "TRIGGER:-PT5M", "END:VALARM",
                     "END:VEVENT"]
+    out += result_events(results, tz, stamp)
     out.append("END:VCALENDAR")
     return "\r\n".join(out) + "\r\n"
+
+
+# ---------- requests from Lyfe Time ("Ask my job assistant") ----------
+
+REQUEST = re.compile(r"\[assistant-request\] id=(\S+) kind=(\w+)")
+REQUEST_KINDS = ("find", "apply", "contacts")
+DONE = OUT / "requests.json"  # requests already handled, so each runs once
+
+
+def parse_request(desc):
+    """{id, kind, job} from a Lyfe Time request's notes, or None."""
+    m = REQUEST.search(desc)
+    if not m or m.group(2) not in REQUEST_KINDS:
+        return None
+    job = re.search(r"^job=(.*)$", desc, re.M)
+    return {"id": m.group(1), "kind": m.group(2), "job": job.group(1).strip() if job else ""}
+
+
+def match_job(text, jobs):
+    """The saved job a request means: its id, or the best-fitting job whose company and title hold every word."""
+    t = text.lower().strip()
+    for j in jobs:
+        if j["id"].lower() == t:
+            return j
+    words = re.findall(r"\w+", t)
+    hits = [j for j in jobs if words and all(w in f"{j['company']} {j['title']}".lower() for w in words)]
+    return max(hits, key=lambda j: (j.get("fit", 0), j.get("score", 0)), default=None)
+
+
+def run_assistant(*args):
+    """Runs assistant.py with the same Python; returns (ok, last lines of output)."""
+    r = subprocess.run([sys.executable, str(ROOT / "assistant.py"), *args], cwd=ROOT,
+                       capture_output=True, text=True, timeout=1800)
+    tail = (r.stdout + r.stderr).strip().splitlines()[-3:]
+    return r.returncode == 0, " ".join(tail)
+
+
+def do_request(req):
+    """Does one request; returns (title, notes) for the note in the Daily plan."""
+    jobs = json.loads((ROOT / "jobs.json").read_text(encoding="utf-8")) if (ROOT / "jobs.json").exists() else []
+    if req["kind"] == "find":
+        ok, log = run_assistant("rank", "--top", "30")
+        if not ok:
+            return "Job search failed", [f"assistant.py rank failed: {log}"]
+        jobs = json.loads((ROOT / "jobs.json").read_text(encoding="utf-8"))
+        best = [j for j in jobs if "fit" in j][:5]
+        return f"{len(best)} best-fit jobs ready", [f"{j['fit']}/10 {j['title']} at {j['company']}: {j['url']}"
+                                                    for j in best] or ["No jobs scored yet."]
+    j = match_job(req["job"], jobs)
+    if not j:
+        return f"No job found for \"{req['job']}\"", [
+            "Nothing in jobs.json matches every word. Send the company or title as it shows in your Daily plan."]
+    if req["kind"] == "apply":
+        ok, log = run_assistant("apply", j["id"])
+        name = "Application pack and contacts"
+    else:
+        ok, log = run_assistant("contacts", j["id"])
+        name = "Contacts"
+    if not ok:
+        return f"{name} failed for {j['company']}", [log]
+    return f"{name} ready: {j['title']} at {j['company']}", [
+        "Saved on your computer in the assistant's out folder.", j["url"]]
+
+
+def handle_requests(requests, today):
+    """Does each new request once and returns the notes to show in the Daily plan, newest results kept 3 days."""
+    done = json.loads(DONE.read_text(encoding="utf-8")) if DONE.exists() else {}
+    for req in requests:
+        if req["id"] in done:
+            continue
+        print(f"  request {req['kind']} {req['job']}".rstrip())
+        try:
+            title, notes = do_request(req)
+        except Exception as e:  # one bad request must not stop the plan
+            title, notes = f"Request failed: {req['kind']}", [str(e)]
+        done[req["id"]] = {"day": today.isoformat(), "title": title, "notes": notes}
+    OUT.mkdir(exist_ok=True)
+    DONE.write_text(json.dumps(done, indent=1, ensure_ascii=False), encoding="utf-8")
+    return [{"id": k, **v} for k, v in done.items()
+            if date.fromisoformat(v["day"]) >= today - timedelta(days=2)]
+
+
+def result_events(results, tz, stamp):
+    """Each result as a free 15-minute note at 08:00 the morning after the request was done."""
+    out = []
+    for r in results:
+        d = (date.fromisoformat(r["day"]) + timedelta(days=1)).strftime("%Y%m%d")
+        notes = r["notes"] + [f"[assistant-result] id={r['id']}"]
+        out += ["BEGIN:VEVENT", f"UID:result-{r['id']}@job-assistant", f"DTSTAMP:{stamp}",
+                f"DTSTART;TZID={tz}:{d}T080000", f"DTEND;TZID={tz}:{d}T081500",
+                f"SUMMARY:{esc('[assistant] ' + r['title'])}", "TRANSP:TRANSPARENT",
+                f"DESCRIPTION:{esc(chr(10).join(notes))}", "END:VEVENT"]
+    return out
 
 
 # ---------- metrics (tracker "Metrics" tab) ----------
@@ -371,11 +471,12 @@ def main():
     args = ap.parse_args()
     cfg = json.loads((ROOT / "schedule.json").read_text(encoding="utf-8"))
     today = date.today()
-    busy, online, progress = read_calendar(cfg, today - timedelta(days=28), today + timedelta(days=args.days))
+    busy, online, progress, requests = read_calendar(cfg, today - timedelta(days=28), today + timedelta(days=args.days))
+    results = handle_requests(requests, today)
     carry = missed_this_week(progress, today)
     if carry:
         print("  carried over:", ", ".join(f"{v} {NAMES[k]}" for k, v in carry.items() if v))
-    ics = build(cfg, today, args.days, busy, online, carry)
+    ics = build(cfg, today, args.days, busy, online, carry, results)
     OUT.mkdir(exist_ok=True)
     (OUT / "plan.ics").write_text(ics, encoding="utf-8", newline="")
     print(f"Wrote {OUT / 'plan.ics'}")
